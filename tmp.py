@@ -4,16 +4,10 @@ import tensorflow.python.keras.layers as layers
 
 x = tf.constant(range(1, 51), shape=[1, 5, 5, 2], dtype=tf.float32)
 
-conv = layers.Conv2D(16, 3, padding="same")
-y = conv(x)
-
-class Test():
-    def __init__(self):
-        self.item1 = 2
-
-    def _test(self, i):
-        setattr(self, "item", i)
-
-tst = Test()
-tst._test(2)
-print(tst.item)
+out = 0
+for i in range(3):
+    outi = tf.constant(range(1, 7), shape=[2, 3])
+    out += outi
+print(out)
+# out = tf.reduce_sum(out, axis=0)
+# print(out)
