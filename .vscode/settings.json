@@ -1,6 +1,0 @@
-{
-    "python.pythonPath": "D:\\ProgramFiles\\miniconda3\\envs\\tensorflow\\python.exe",
-    "python.formatting.provider": "yapf",
-    "python.linting.flake8Enabled": true,
-    "python.linting.enabled": true
-}

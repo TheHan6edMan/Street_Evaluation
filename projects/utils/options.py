@@ -1,11 +1,21 @@
 import argparse
 
-parser = argparse.ArgumentParser(description="Street Quality Evaluation")
+parser = argparse.ArgumentParser(description="Street Evaluation")
 
 parser.add_argument(
-    "--pretrained_model_file",
-    default=None,
+    "--backbone",
+    default="resnet50",
     type=str,
-    help="path to the checkpoint of the pretrained model"
+    help="Backbone module of semantic segmentation model"
+)
+parser.add_argument(
+    "--data_path",
+    type=str,
+    default="/mnt/data/imagenet",
+    help="The path where the data is stored. default:/mnt/data/imagenet"
+)
+parser.add_argument(
+
 )
 
+args = parser.parse_args()

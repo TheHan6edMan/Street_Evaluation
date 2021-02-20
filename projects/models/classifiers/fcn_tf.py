@@ -52,7 +52,7 @@ class Vgg(Model):
         
 
 def vgg16():
-    return Vgg([2] * 2 + [3] * 3)
+    return Vgg([2, 2, 3, 3])
 
 def test():
     model = vgg16()
