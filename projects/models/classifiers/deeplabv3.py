@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from torchvision.datasets import MNIST
 
 class ASPP(nn.Module):
     def __init__(self, in_channel, out_channel, dilation_rates):
@@ -62,3 +63,7 @@ def test():
     classifier = deeplabv3_classifier(2048)
     y = classifier(torch.rand((2, 2048, 28, 28)))
     print(y.shape)
+
+
+if __name__ == "__main__":
+    test()

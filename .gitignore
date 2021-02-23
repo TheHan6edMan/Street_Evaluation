@@ -1,2 +1,3 @@
-thesis_defence
-third_party_lib
+*.ckpt.*
+checkpoint
+/test/*
