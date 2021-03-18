@@ -1,3 +1,7 @@
 *.ckpt.*
+*.pth
 checkpoint
 /test/*
+
+out_image
+projects/experiments

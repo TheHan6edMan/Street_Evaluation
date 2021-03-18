@@ -1,82 +1,62 @@
-import tensorflow as tf
-import tensorflow.keras as keras
-import tensorflow.keras.layers as layers
-import tensorflow.keras.losses as losses
-from tensorflow.keras.applications import resnet
+import sys, os
+import cv2
+import torch
+import torchvision
+import numpy as np
+import requests
 
-model = resnet.ResNet50(include_top=True, weights='imagenet', input_shape=(224, 224, 3))
-# model.summary(line_length=160)
+from urllib.request import urlopen
+import matplotlib.pyplot as plt
 
-# model.compile(
-#     optimizer='adam',
-#     loss='sparse_categorical_crossentropy',
-#     metrics=['accuracy']
-# )
-# tensorboard_callback = keras.callbacks.TensorBoard(log_dir="./test/tb_vis/tf_resnet50")
-# x_train = tf.random.normal((16, 224, 224, 3))
-# y_train = tf.random.normal((16, 1))
-# model.fit(
-#     x_train[0:2],
-#     y_train[0:2],
-#     epochs=1,
-#     callbacks=[tensorboard_callback]
-# )
-def replace_name(name, original, new):
-    for orig, new_ in zip(original, new):
-        if orig in name:
-            name = name.replace(orig, new_)
-    return name
+# model = resnet.ResNet50(include_top=True, weights='imagenet', input_shape=(224, 224, 3))
 
-scope = sub_scope = m = new_scope = new_sub_scope = new_m = ""
-for l in model.layers:
-    name = l.name
-    name = replace_name(
-        name,
-        ["block1", "block2", "block3", "block4", "block5", "block6"],
-        ["bottleneck0/", "bottleneck1/", "bottleneck2/", "bottleneck3/", "bottleneck4/", "bottleneck5/"]
-    )
-    name = replace_name(
-        name,
-        ["_1_conv", "_1_bn", "_1_relu", "_2_conv", "_2_bn", "_2_relu", "_3_conv", "_3_bn", "_out", "_0_conv", "_0_bn"],
-        ["conv0", "bn0", "relu0", "conv1", "bn1", "relu1", "conv2", "bn2", "relu2", "DS/conv", "DS/bn"]
-    )
-    name = replace_name(
-        name,
-        ["conv1_", "conv2_", "conv3_", "conv4_", "conv5_"],
-        ["", "block0/", "block1/", "block2/", "block3/"]
-    )
-    # print(name)
-    if "/" in name:
-        new_scope, new_sub_scope, new_m = name.split("/", 2)
-        if scope != new_scope:
-            print("\n"+new_scope+"\n\t"+new_sub_scope+"\n\t\t", end="")
-            scope = new_scope
-            sub_scope = new_sub_scope
-        elif scope == new_scope and sub_scope != new_sub_scope:
-            print("\n\t"+new_sub_scope+"\n\t\t", end="")
-            sub_scope = new_sub_scope
-        else:
-            print("\n\t\t", end="")
+def test():
 
-        if isinstance(l, layers.Conv2D):
-            stride = l.get_config()["strides"][0]
-            dilate = l.get_config()["dilation_rate"][0]
-            print(
-                new_m+f"\tstrides={stride}, rate={dilate}, ",
-                l.input.shape[1:], "--", l.weights[0].shape,
-                "-->", l.output.shape[1:], sep="", end=""
-            )
-        else:
-            print(new_m, end="")
-    else:
-        if isinstance(l, layers.Conv2D):
-            stride = l.get_config()["strides"][0]
-            dilate = l.get_config()["dilation_rate"][0]
-            print(
-                name+f", strides={stride}, rate={dilate},",
-                l.input.shape[1:], "--", l.weights[0].shape,
-                "-->", l.output.shape[1:]
-            )
-        else:
-            print(name)
+    def download(url, name):
+        conn = urlopen(url)
+        outimg = conn.read()
+        conn.close()
+        data_img = cv2.imdecode(np.asarray(bytearray(outimg), dtype=np.uint8), 1)
+        if data_img is not None:
+            if not os.path.isfile(name):
+                cv2.imwrite(name, data_img)
+                plt.imshow(data_img)    
+                return data_img
+    save_dir = "./out_image/beijing_new/"
+    if not os.path.isdir(save_dir):
+        os.makedirs(save_dir)
+    with open("./tmp.txt","r") as f:
+        start_end_points = f.readlines()
+    start_point, end_point = start_end_points
+    start_point_jin, start_point_wei = start_point.strip('\n').split(',')
+    end_point_jin, end_point_wei = end_point.strip('\n').split(',')
+
+    jins = np.arange(float(start_point_jin)*10000, float(end_point_jin)*10000, 1)*0.0001
+    weis = np.linspace(float(start_point_wei)*10000, float(end_point_wei)*10000, len(jins))*0.0001
+
+    print("==> processing {} requests...".format(len(jins)))
+    for i, (jin, wei) in enumerate(zip(jins, weis)):
+        img_name = "./out_image/beijing_new/" + str(round(jin, 6)) + "_" + str(round(wei, 6)) +".jpg"
+        url = "http://api.map.baidu.com/panorama/v2?ak=9FcRfTXGEkpiBMrkjV7d2BGOVBXcaAoo&width=1024&height=512&location="+str(jin)+","+str(wei)+"&fov=180"
+        outimg = download(url, img_name)
+
+
+# help(torchvision.datasets.utils.extract_archive)
+
+def mul_mod(a, b, n):
+    return a * b - n * (a * b // n)
+
+def check_closed(set_, op, mod=None):
+    for i in set_:
+        for j in set_:
+            result = op(i, j, mod)
+            if result not in set_:
+                print(f"{i} {j}={result} is not in {set_}")
+
+
+# check_closed([1, 9, 16, 22, 53, 74, 79, 81], mul_mod, 91)
+
+
+print(torch.unique(torch.tensor([1, 2, 255, 4, 2])))
+
 

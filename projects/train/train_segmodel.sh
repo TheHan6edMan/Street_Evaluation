@@ -1,0 +1,15 @@
+CUDA_VISIBLE_DEVICES=0,1,2,3 python train_segmodel.py \
+--working_dir ../experiments/run \
+--baseline_dir ../experiments/baseline \
+--dataset cityscapes \
+--data_path /export/home/guest100/data \
+--use_train_extra False \
+--ds_type gtCoarse \
+--backbone resnet50 \
+--arch deeplabv3_resnet50 \
+--epochs 200 \
+--init_lr 0.01 \
+--batch_size_train 16 \
+--ignore_index -1 \
+--n_classes 19 \
+--gpus 0 1 2 3

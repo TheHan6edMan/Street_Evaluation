@@ -1,62 +1,59 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torchvision.models.segmentation import deeplabv3_resnet50
 
-from torchvision.datasets import MNIST
 
 class ASPP(nn.Module):
     def __init__(self, in_channel, out_channel, dilation_rates):
         super(ASPP, self).__init__()
-        self.atrous_conv0 = nn.Sequential(
-            nn.Conv2d(in_channel, out_channel, 1, bias=False),
-            nn.BatchNorm2d(out_channel), nn.ReLU()
-        )
-        self.atrous_conv1 = self._make_atrous_conv_branch(in_channel, out_channel, dilation_rates[0])
-        self.atrous_conv2 = self._make_atrous_conv_branch(in_channel, out_channel, dilation_rates[1])
-        self.atrous_conv3 = self._make_atrous_conv_branch(in_channel, out_channel, dilation_rates[2])
-        self.atrous_pool = nn.Sequential(
-            nn.AdaptiveAvgPool2d(output_size=1),
-            nn.Conv2d(in_channel, out_channel, 1, bias=False),
-            nn.BatchNorm2d(out_channel),
-            nn.ReLU(inplace=True),
-        )
+        self.atrous_conv0 = self._make_branch(in_channel, out_channel, 0, ksize=1)
+        self.atrous_conv1 = self._make_branch(in_channel, out_channel, dilation_rates[0])
+        self.atrous_conv2 = self._make_branch(in_channel, out_channel, dilation_rates[1])
+        self.atrous_conv3 = self._make_branch(in_channel, out_channel, dilation_rates[2])
+        self.atrous_pool0 = self._make_branch(in_channel, out_channel, 0, ksize=1, img_pooling=True)
 
-    def _make_atrous_conv_branch(self, in_channel, out_channel, dilation_rate):
+
+    def _make_branch(self, in_channel, out_channel, dilation_rate, ksize=3, img_pooling=False):
         branch = [
-            nn.Conv2d(in_channel, out_channel, 3, padding=dilation_rate, dilation=dilation_rate, bias=False),
-            nn.BatchNorm2d(out_channel), nn.ReLU()
+            nn.Conv2d(in_channel, out_channel, ksize, padding=dilation_rate, dilation=dilation_rate, bias=False),
+            nn.BatchNorm2d(out_channel), nn.ReLU(inplace=True)
         ]
+        if img_pooling:
+            branch = [nn.AdaptiveAvgPool2d(output_size=1)] + branch
         return nn.Sequential(*branch)
 
     def forward(self, x):
         size = x.shape[-2:]
-        feature0 = self.atrous_conv0(x)
-        feature1 = self.atrous_conv1(x)
-        feature2 = self.atrous_conv2(x)
-        feature3 = self.atrous_conv3(x)
-        feature4 = self.atrous_pool(x)
-        feature4 = F.interpolate(feature4, size=size, mode="bilinear", align_corners=False)
-        y = torch.cat((feature0, feature1, feature2, feature3, feature4), dim=1)
+        feat0 = self.atrous_conv0(x)
+        feat1 = self.atrous_conv1(x)
+        feat2 = self.atrous_conv2(x)
+        feat3 = self.atrous_conv3(x)
+        feat4 = self.atrous_pool0(x)
+        feat4 = F.interpolate(feat4, size=size, mode="bilinear", align_corners=False)
+        y = torch.cat((feat0, feat1, feat2, feat3, feat4), dim=1)
         return y
 
 
-class DeepLabV3Classifier(nn.Module):
-    def __init__(self, in_channel, dilation_rates=[6, 12, 18], inter_channel=256, num_classes=21):
-        super(DeepLabV3Classifier, self).__init__()
-        self.classifier = nn.Sequential(
+class DeepLabV3Classifier(nn.Sequential):
+    def __init__(self, in_channel, dilation_rates=[6, 12, 18], inter_channel=256, n_classes=21):
+        super(DeepLabV3Classifier, self).__init__(
             ASPP(in_channel, inter_channel, dilation_rates),
-            nn.Conv2d(inter_channel * 5, 256, 3, padding=1, bias=False),
+            nn.Conv2d(inter_channel * 5, 256, 1, bias=False),
             nn.BatchNorm2d(256),
             nn.ReLU(inplace=True),
-            nn.Conv2d(256, num_classes, 1)
+            nn.Dropout(0.5),
+            nn.Conv2d(256, n_classes, 1)
         )
-    
+
     def forward(self, x):
-        return self.classifier(x)
+        for module in self:
+            x = module(x)
+        return x
 
 
-def deeplabv3_classifier(in_channel, num_classes=21, dilation_rates=[6, 12, 18], **kwargs):
-    return DeepLabV3Classifier(in_channel, dilation_rates=dilation_rates, num_classes=num_classes, **kwargs)
+def deeplabv3_classifier(in_channel, n_classes=21, dilation_rates=[6, 12, 18], **kwargs):
+    return DeepLabV3Classifier(in_channel, dilation_rates=dilation_rates, n_classes=n_classes, **kwargs)
 
 
 def test():

@@ -1,10 +1,9 @@
+import os
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import sys
 
-sys.path.append("../")
-from _utils import transfer_params_model
+from .._utils import transfer_params, InterLayer
 
 
 def conv3x3(in_channel, out_channel, stride=1, dilation_rate=1):
@@ -44,11 +43,13 @@ class Bottleneck(nn.Module):
 
 
 class ResNet(nn.Module):
-    def __init__(self, res_unit, num_units, is_dilate, num_classes=1000, return_dict=False):
+    def __init__(self, res_unit, num_units, is_dilate, n_classes=1000, return_dict=False, include_top=True):
         super(ResNet, self).__init__()
         self.dilation_rate = 1
         self.in_channel = 64
         self.return_dict = return_dict
+        self.include_top = include_top
+
         self.conv0 = nn.Conv2d(3, 64, (7, 7), stride=2, padding=3, bias=False)
         self.bn0 = nn.BatchNorm2d(64)
         self.relu0 = nn.ReLU(inplace=True)
@@ -58,7 +59,7 @@ class ResNet(nn.Module):
         self.block2 = self._build_block(res_unit, 256, num_units[2], is_dilate[2], stride=2)
         self.block3 = self._build_block(res_unit, 512, num_units[3], is_dilate[3], stride=2)
         self.avgpool = nn.AdaptiveAvgPool2d(1)
-        self.linear = nn.Linear(512 * res_unit.expansion, num_classes)
+        self.linear = nn.Linear(512 * res_unit.expansion, n_classes)
 
     def _build_block(self, res_unit, inter_channel, num_unit, is_dilate=False, stride=1):
         _dilation_rate = self.dilation_rate
@@ -80,35 +81,41 @@ class ResNet(nn.Module):
         feature3 = self.block3(feature2)
         logits = self.avgpool(feature3)
         logits = self.linear(torch.flatten(logits, 1))
-        if self.return_dict:
-            return_dict_ = {
+        if self.include_top:
+            return logits
+        elif self.return_dict:
+            feat_dict = {
                 "block0": feature0, "block1": feature1,
                 "block2": feature2, "block3": feature3,
-                "out": logits
+                "logits": logits
             }
-            return return_dict_
+            return feat_dict
         else:
+            return feature3
 
-            return logis
 
-
-def _resnet(arch, res_unit, num_units, is_dilate, transfer_params=True, pretrained=False, progress=True, **kwargs):
+def _resnet(arch, res_unit, num_units, is_dilate, state_dict_dir=None, **kwargs):
     model = ResNet(res_unit, num_units, is_dilate, **kwargs)
-    if pretrained:
-        state_dict = torch.load(args.job_dir)
-        model.load_state_dict(state_dict)
-    elif transfer_params:
-        state_dict = transfer_params_model(arch, progress)
-        model.load_state_dict(state_dict)
+    if state_dict_dir is not None:
+        state_dict_dir_ = os.path.join(state_dict_dir, arch + ".pth")
+        if os.path.isfile(state_dict_dir_):
+            state_dict = torch.load(state_dict_dir_)
+            model.load_state_dict(state_dict)
+        else:
+            os.makedirs(state_dict_dir, exist_ok=True)
+            state_dict = transfer_params(arch, progress=True)
+            model.load_state_dict(state_dict)
+            torch.save(model.state_dict(), state_dict_dir_)
     return model
 
 
-def resnet50(**kwargs):
-    return _resnet("resnet50", Bottleneck, [3, 4, 6, 3], [False, False, True, True], **kwargs)
+def resnet50(state_dict_dir=None, return_dict=False, include_top=True, **kwargs):
+    kwargs.update({"return_dict":return_dict, "include_top":include_top})
+    return _resnet("resnet50", Bottleneck, [3, 4, 6, 3], [False, False, True, True], state_dict_dir, **kwargs)
 
 
 def test():
-    model = resnet50(return_dict=True)
+    model = resnet50(return_dict=True, include_top=False)
     out = model(torch.rand((2, 3, 224, 224)))
-    for k, v in out.items():
-        print(k, v.shape)
+    print(model)
+    print(out.keys())
