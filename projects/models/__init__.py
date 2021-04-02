@@ -21,14 +21,11 @@ class SegModel(nn.Module):
         self.classifier = classifiers.__dict__[arch+"_classifier"](in_channel=in_channel, n_classes=n_classes, **kwargs)
 
     def forward(self, inputs):
-        print(inputs)
         in_size = inputs.shape[-2:]
         feat = self.backbone(inputs)
-        print("backbone_out")
         backbone_out = feat["block3"] if isinstance(feat, dict) else feat
         classifier_out = self.classifier(backbone_out)
         out = F.interpolate(classifier_out, in_size, mode="bilinear", align_corners=False)
-        print("classifier_out")
         if self.return_dict:
             feat = feat if isinstance(feat, dict) else {"block3": feat}
             feat.update({"b4_upsampling": classifier_out, "out": out})

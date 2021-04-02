@@ -32,9 +32,10 @@ class MeanIoU(object):
     def update(self, outputs, targets):
         with torch.no_grad():
             outputs = outputs.argmax(dim=1, keepdim=True)
+            outputs, targets = outputs.cpu(), targets.cpu()
             for output, target in zip(outputs, targets):
                 output, target = output.flatten(),  target.flatten()
-                mask = (target >= 0) and (target < self.n_classes)
+                mask = (target >= 0) * (target < self.n_classes)
                 self.confusion_matrix += torch.bincount(
                     self.n_classes * target[mask] + output[mask],
                     minlength=self.n_classes**2

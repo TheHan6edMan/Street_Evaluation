@@ -62,20 +62,26 @@ parser.add_argument(
 parser.add_argument(
     "--batch_size_train",
     type=int,
+    default=8,
+    help="batch size during training, dft: 8"
+)
+parser.add_argument(
+    "--batch_size_test",
+    type=int,
     default=16,
     help="batch size during training, dft: 16"
 )
-
 parser.add_argument(
     "--gpus",
+    type=int,
     nargs='+',
     default=[0],
     help='the gpu_id to use. default:[0]',
 )
 parser.add_argument(
     "--n_workers",
-    type=bool,
-    default=False,
+    type=int,
+    default=2,
     help="whether to use the `train_extra` set, default: False"
 )
 parser.add_argument(

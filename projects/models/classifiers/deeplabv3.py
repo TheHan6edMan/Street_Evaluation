@@ -7,11 +7,20 @@ from torchvision.models.segmentation import deeplabv3_resnet50
 class ASPP(nn.Module):
     def __init__(self, in_channel, out_channel, dilation_rates):
         super(ASPP, self).__init__()
-        self.atrous_conv0 = self._make_branch(in_channel, out_channel, 0, ksize=1)
+        self.atrous_conv0 = nn.Sequential(
+            nn.Conv2d(in_channel, out_channel, 1, bias=False),
+            nn.BatchNorm2d(out_channel),
+            nn.ReLU(inplace=True)
+        )
         self.atrous_conv1 = self._make_branch(in_channel, out_channel, dilation_rates[0])
         self.atrous_conv2 = self._make_branch(in_channel, out_channel, dilation_rates[1])
         self.atrous_conv3 = self._make_branch(in_channel, out_channel, dilation_rates[2])
-        self.atrous_pool0 = self._make_branch(in_channel, out_channel, 0, ksize=1, img_pooling=True)
+        self.atrous_pool0 = nn.Sequential(
+            nn.AdaptiveAvgPool2d(output_size=1),
+            nn.Conv2d(in_channel, out_channel, 1, bias=False),
+            nn.BatchNorm2d(out_channel),
+            nn.ReLU(inplace=True),
+        )
 
 
     def _make_branch(self, in_channel, out_channel, dilation_rate, ksize=3, img_pooling=False):
@@ -19,8 +28,6 @@ class ASPP(nn.Module):
             nn.Conv2d(in_channel, out_channel, ksize, padding=dilation_rate, dilation=dilation_rate, bias=False),
             nn.BatchNorm2d(out_channel), nn.ReLU(inplace=True)
         ]
-        if img_pooling:
-            branch = [nn.AdaptiveAvgPool2d(output_size=1)] + branch
         return nn.Sequential(*branch)
 
     def forward(self, x):
@@ -43,7 +50,7 @@ class DeepLabV3Classifier(nn.Sequential):
             nn.BatchNorm2d(256),
             nn.ReLU(inplace=True),
             nn.Dropout(0.5),
-            nn.Conv2d(256, n_classes, 1)
+            nn.Conv2d(256, n_classes, 1),
         )
 
     def forward(self, x):

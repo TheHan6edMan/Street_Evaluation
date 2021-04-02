@@ -2,6 +2,7 @@
 *.pth
 checkpoint
 /test/*
+*.xlsx
 
 out_image
 projects/experiments
